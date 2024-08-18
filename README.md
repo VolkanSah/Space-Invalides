@@ -1,10 +1,5 @@
-# Space Invalides 😄  a smal Python Game 4FUN
-
-![Space Invaliedes](img/screenshot.png)
-
+# Space Invalides 
 ### Welcome to **Space Invalides**! This is a fun and challenging game built with Python and Pygame.
-
-
 
 ## How to Play
 
@@ -34,4 +29,7 @@ The game features retro-style graphics, which are located in the `img` folder.
 ---
 
 Get ready for a retro gaming experience that’s more challenging than it looks!
+
+## Screenshot
+![Space Invaliedes](img/screenshot.png)
 
