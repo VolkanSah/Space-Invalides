@@ -1,7 +1,8 @@
 # Space Invalides 
+Welcome to **Space Invalides**! This is a fun and challenging game built with Python and Pygame.
 ![Space Invaliedes](img/screenshot.png)
 
-Welcome to **Space Invalides**! This is a fun and challenging game built with Python and Pygame.
+
 
 ## How to Play
 
@@ -21,12 +22,12 @@ But be warned, this game isn't as easy as it seems!
 2. **Run the Game**: After installing Pygame, simply run the Python script to start the game:
 
     ```bash
-    python space_invalides.py
+    python game.py
     ```
 
 ## Assets
 
-The game features retro-style graphics, which are located in the `assets` folder.
+The game features retro-style graphics, which are located in the `img` folder.
 
 ---
 
