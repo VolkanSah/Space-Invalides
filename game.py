@@ -13,7 +13,7 @@ screen = pygame.display.set_mode((800, 600))
 background = pygame.image.load('img/background.png')
 
 # Title and Icon
-pygame.display.set_caption("Space Invalides")
+pygame.display.set_caption("Monochromer Flugsimulator")
 icon = pygame.image.load('img/icon.png')
 pygame.display.set_icon(icon)
 
@@ -23,20 +23,20 @@ playerX = 370
 playerY = 480
 playerX_change = 0
 
-# Enemy
-enemyImg = []
-enemyX = []
-enemyY = []
-enemyX_change = []
-enemyY_change = []
-num_of_enemies = 6
+# Obstacles (Enemies)
+obstacleImg = []
+obstacleX = []
+obstacleY = []
+obstacleX_change = []
+obstacleY_change = []
+num_of_obstacles = 2  # Start mit 1-2 Hindernissen
 
-for i in range(num_of_enemies):
-    enemyImg.append(pygame.image.load('img/enemy.png'))
-    enemyX.append(random.randint(0, 735))
-    enemyY.append(random.randint(50, 150))
-    enemyX_change.append(4)
-    enemyY_change.append(40)
+for i in range(num_of_obstacles):
+    obstacleImg.append(pygame.image.load(f'img/obstacle_{i % 5 + 1}.png'))  # 5 verschiedene Hindernisse
+    obstacleX.append(random.randint(0, 735))
+    obstacleY.append(random.randint(-100, -50))  # Starten außerhalb des Bildschirms
+    obstacleX_change.append(0)  # Bewegung nur vertikal
+    obstacleY_change.append(2)  # Langsamer Start, wird später schneller
 
 # Bullet
 bulletImg = pygame.image.load('img/bullet.png')
@@ -46,10 +46,10 @@ bulletX_change = 0
 bulletY_change = 10
 bullet_state = "ready"
 
-# Score
+# Score and Level
 score_value = 0
+level = 1
 font = pygame.font.Font('freesansbold.ttf', 32)
-
 textX = 10
 textY = 10
 
@@ -68,9 +68,23 @@ paused = False
 # Game Over Status
 game_over = False
 
+# Granatenstatus
+grenades = 1
+
+# Multiplikator für die Punkte
+multiplier = 1
+
 def show_score(x, y):
     score = font.render("Score : " + str(score_value), True, (255, 255, 255))
     screen.blit(score, (x, y))
+
+def show_level(x, y):
+    level_text = font.render("Level : " + str(level), True, (255, 255, 255))
+    screen.blit(level_text, (x, y))
+
+def show_grenades(x, y):
+    grenade_text = font.render("Grenades : " + str(grenades), True, (255, 255, 255))
+    screen.blit(grenade_text, (x, y))
 
 def game_over_text():
     over_text = over_font.render("GAME OVER", True, (255, 255, 255))
@@ -83,17 +97,21 @@ def pause_text():
 def player(x, y):
     screen.blit(playerImg, (x, y))
 
-def enemy(x, y, i):
-    screen.blit(enemyImg[i], (x, y))
+def obstacle(x, y, i):
+    screen.blit(obstacleImg[i], (x, y))
 
 def fire_bullet(x, y):
     global bullet_state
     bullet_state = "fire"
     screen.blit(bulletImg, (x + 16, y + 10))
 
-def isCollision(enemyX, enemyY, bulletX, bulletY):
-    distance = math.sqrt((math.pow(enemyX - bulletX, 2)) + (math.pow(enemyY - bulletY, 2)))
+def isCollision(obstacleX, obstacleY, bulletX, bulletY):
+    distance = math.sqrt((math.pow(obstacleX - bulletX, 2)) + (math.pow(obstacleY - bulletY, 2)))
     return distance < 27
+
+def player_collision(obstacleX, obstacleY, playerX, playerY):
+    distance = math.sqrt((math.pow(obstacleX - playerX, 2)) + (math.pow(obstacleY - playerY, 2)))
+    return distance < 50  # Größere Toleranz für Kollision
 
 def button(msg, x, y, w, h, ic, ac, action=None):
     mouse = pygame.mouse.get_pos()
@@ -101,7 +119,7 @@ def button(msg, x, y, w, h, ic, ac, action=None):
 
     if x + w > mouse[0] > x and y + h > mouse[1] > y:
         pygame.draw.rect(screen, ac, (x, y, w, h))
-        if click[0] == 1 and action != None:
+        if click[0] == 1 and action is not None:
             action()
     else:
         pygame.draw.rect(screen, ic, (x, y, w, h))
@@ -110,16 +128,20 @@ def button(msg, x, y, w, h, ic, ac, action=None):
     screen.blit(text, (x + (w / 2 - text.get_width() / 2), y + (h / 2 - text.get_height() / 2)))
 
 def restart_game():
-    global game_over, score_value, playerX, playerY, bulletY, bullet_state, enemyX, enemyY
+    global game_over, score_value, playerX, playerY, bulletY, bullet_state, obstacleX, obstacleY, multiplier, grenades, level, num_of_obstacles
     game_over = False
     score_value = 0
+    level = 1
+    grenades = 1
     playerX = 370
     playerY = 480
     bulletY = 480
     bullet_state = "ready"
-    for i in range(num_of_enemies):
-        enemyX[i] = random.randint(0, 735)
-        enemyY[i] = random.randint(50, 150)
+    multiplier = 1
+    num_of_obstacles = 2  # Zurücksetzen auf den Startwert
+    for i in range(num_of_obstacles):
+        obstacleX[i] = random.randint(0, 735)
+        obstacleY[i] = random.randint(-100, -50)
 
 def quit_game():
     pygame.quit()
@@ -127,6 +149,22 @@ def quit_game():
 
 def open_donation():
     webbrowser.open('https://www.paypal.com/donate?hosted_button_id=YOUR_PAYPAL_BUTTON_ID')
+
+def use_grenade():
+    global score_value, grenades, multiplier
+    if grenades > 0:
+        score_value += int(2 * multiplier * num_of_obstacles)
+        grenades -= 1
+        for i in range(num_of_obstacles):
+            obstacleX[i] = random.randint(0, 735)
+            obstacleY[i] = random.randint(-100, -50)
+        show_grenade_text()
+
+def show_grenade_text():
+    text = font.render("Granate used +100 % Points!", True, (255, 255, 0))
+    screen.blit(text, (200, 300))
+    pygame.display.update()
+    pygame.time.wait(1000)  # Zeige den Text für 1 Sekunde an
 
 # Main game loop
 running = True
@@ -151,6 +189,8 @@ while running:
                     if bullet_state == "ready":
                         bulletX = playerX
                         fire_bullet(bulletX, bulletY)
+                if event.key == pygame.K_g:  # 'G' key for grenade
+                    use_grenade()
 
         if event.type == pygame.KEYUP:
             if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
@@ -160,28 +200,40 @@ while running:
         playerX += playerX_change
         playerX = max(0, min(playerX, 736))
 
-        for i in range(num_of_enemies):
-            if enemyY[i] > 440:
-                game_over = True
+        # Hindernisse bewegen
+        for i in range(num_of_obstacles):
+            if obstacleY[i] > 600:  # Hindernis verpasst
+                if score_value <= 0:
+                    game_over = True
+                else:
+                    score_value -= 1
+                    obstacleY[i] = random.randint(-100, -50)
+                    obstacleX[i] = random.randint(0, 735)
 
-            enemyX[i] += enemyX_change[i]
-            if enemyX[i] <= 0:
-                enemyX_change[i] = 4
-                enemyY[i] += enemyY_change[i]
-            elif enemyX[i] >= 736:
-                enemyX_change[i] = -4
-                enemyY[i] += enemyY_change[i]
+            obstacleY[i] += obstacleY_change[i]
 
-            collision = isCollision(enemyX[i], enemyY[i], bulletX, bulletY)
+            # Überprüfe Kollision mit Spieler
+            if player_collision(obstacleX[i], obstacleY[i], playerX, playerY):
+                if score_value > 0:
+                    score_value -= 5  # Punkteabzug bei Kollision
+                    obstacleY[i] = random.randint(-100, -50)
+                    obstacleX[i] = random.randint(0, 735)
+                else:
+                    game_over = True
+
+            # Überprüfe Kollision mit Kugel
+            collision = isCollision(obstacleX[i], obstacleY[i], bulletX, bulletY)
             if collision:
                 bulletY = 480
                 bullet_state = "ready"
-                score_value += 1
-                enemyX[i] = random.randint(0, 735)
-                enemyY[i] = random.randint(50, 150)
+                score_value += int(1 * multiplier)
+                obstacleX[i] = random.randint(0, 735)
+                obstacleY[i] = random.randint(-100, -50)
+                multiplier += 0.1  # Erhöht den Multiplikator bei Abschüssen
 
-            enemy(enemyX[i], enemyY[i], i)
+            obstacle(obstacleX[i], obstacleY[i], i)
 
+        # Kugelbewegung
         if bulletY <= 0:
             bulletY = 480
             bullet_state = "ready"
@@ -190,8 +242,20 @@ while running:
             fire_bullet(bulletX, bulletY)
             bulletY -= bulletY_change
 
+        # Level-Up Logik
+        if score_value > 0 and score_value // 10 >= level:
+            level += 1
+            num_of_obstacles += 1
+            obstacleImg.append(pygame.image.load(f'img/obstacle_{len(obstacleImg) % 5 + 1}.png'))
+            obstacleX.append(random.randint(0, 735))
+            obstacleY.append(random.randint(-100, -50))
+            obstacleY_change.append(2 + level * 0.5)  # Hindernisse werden schneller
+
+        show_score(textX, textY)
+        show_level(textX, textY + 40)
+        show_grenades(textX, textY + 80)
+
     player(playerX, playerY)
-    show_score(textX, textY)
 
     if paused:
         pause_text()
