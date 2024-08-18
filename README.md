@@ -1,5 +1,5 @@
 # Space Invalides 
-![Space Invaliedes](img/background.png)
+![Space Invaliedes](img/screenshot.png)
 
 Welcome to **Space Invalides**! This is a fun and challenging game built with Python and Pygame.
 
