@@ -12,8 +12,8 @@ screen = pygame.display.set_mode((800, 600))
 background = pygame.image.load('img/background.png')
 
 # Titel und Icon
-pygame.display.set_caption("Space Invaders")
-icon = pygame.image.load('icon.png')
+pygame.display.set_caption("Space Invalides")
+icon = pygame.image.load('img/icon.png')
 pygame.display.set_icon(icon)
 
 # Spieler
