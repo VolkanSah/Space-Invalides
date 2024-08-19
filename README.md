@@ -1,5 +1,5 @@
 # Space Invalides 
-Welcome to **Space Invalides**! This is a fun and challenging game built with Python and Pygame. Playing with Python 😄
+Welcome to **Space Invalides**! This is a fun and challenging game built with Python and Pygame. My first Pthon game is similar to Space Invaders 😄
 
 ## How to Play
 
