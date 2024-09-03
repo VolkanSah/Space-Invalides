@@ -1,6 +1,6 @@
 # Space Invalides 
 Welcome to **Space Invalides**! This is a fun and challenging game built with Python and Pygame. My first Pthon game is similar to Space Invaders 😄
-
+### Note: in docs-folder the static version -but slower!
 ## How to Play
 
 - **Move**: Use the **arrow keys** to navigate your spaceship.
