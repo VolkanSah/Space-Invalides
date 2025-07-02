@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Space Invalides - Phaser.js Starter</title>
+<style>
+  body {
+    margin: 0; 
+    overflow: hidden;
+  }
+  #game-container {
+    width: 800px;
+    height: 600px;
+    margin: 0 auto;
+    display: block;
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
+</head>
+<body>
+<div id="game-container"></div>
+
+<script type="module">
+  async function loadGame() {
+    const config = {
+      type: Phaser.AUTO,
+      width: 800,
+      height: 600,
+      parent: 'game-container',
+      physics: {
+        default: 'arcade',
+        arcade: { debug: false }
+      },
+      scene: {
+        preload,
+        create,
+        update
+      }
+    };
+
+    let player, cursors, bullets, lastFired = 0, enemies, score = 0, scoreText;
+
+    const game = new Phaser.Game(config);
+
+    async function preload() {
+      this.load.image('background', 'img/background.png');
+      this.load.image('player', 'img/player.png');
+      this.load.image('enemy', 'img/enemy.png');
+      this.load.image('bullet', 'img/bullet.png');
+      this.load.image('icon', 'img/icon.png');
+    }
+
+    function create() {
+      this.add.image(400, 300, 'background');
+
+      player = this.physics.add.sprite(400, 550, 'player');
+      player.setCollideWorldBounds(true);
+
+      bullets = this.physics.add.group({
+        defaultKey: 'bullet',
+        maxSize: 10
+      });
+
+      enemies = this.physics.add.group();
+      for(let i = 0; i < 6; i++) {
+        let x = Phaser.Math.Between(50, 750);
+        let y = Phaser.Math.Between(50, 150);
+        let enemy = enemies.create(x, y, 'enemy');
+        enemy.setVelocityX(100);
+        enemy.setCollideWorldBounds(true);
+        enemy.setBounce(1);
+      }
+
+      cursors = this.input.keyboard.createCursorKeys();
+
+      scoreText = this.add.text(10, 10, 'Score: 0', { fontSize: '32px', fill: '#fff' });
+
+      this.physics.add.overlap(bullets, enemies, hitEnemy, null, this);
+    }
+
+    function update(time) {
+      if (!player) return;
+
+      player.setVelocityX(0);
+
+      if (cursors.left.isDown) {
+        player.setVelocityX(-300);
+      } else if (cursors.right.isDown) {
+        player.setVelocityX(300);
+      }
+
+      if (cursors.space.isDown && time > lastFired) {
+        let bullet = bullets.get(player.x, player.y - 20);
+        if (bullet) {
+          bullet.setActive(true);
+          bullet.setVisible(true);
+          bullet.body.velocity.y = -400;
+          lastFired = time + 300;
+        }
+      }
+
+      bullets.children.each(bullet => {
+        if (bullet.active && bullet.y < 0) {
+          bullet.setActive(false);
+          bullet.setVisible(false);
+        }
+      });
+
+      enemies.children.each(enemy => {
+        if (enemy.x >= 750) enemy.setVelocityX(-100);
+        else if (enemy.x <= 50) enemy.setVelocityX(100);
+        if (enemy.y > 550) {
+          this.scene.pause();
+          scoreText.setText('Game Over! Final Score: ' + score);
+        }
+      });
+    }
+
+    function hitEnemy(bullet, enemy) {
+      bullet.setActive(false);
+      bullet.setVisible(false);
+      enemy.x = Phaser.Math.Between(50, 750);
+      enemy.y = Phaser.Math.Between(50, 150);
+      score += 1;
+      scoreText.setText('Score: ' + score);
+    }
+  }
+
+  loadGame();
+</script>
+</body>
+</html>
