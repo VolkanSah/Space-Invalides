@@ -5,7 +5,8 @@ Welcome to **Space Invalides**!
 A fun and challenging retro shooter game inspired by Space Invaders — available in two flavors:
 
 * **Python version** built with Pygame (my first Python game, updated to work in 2024/25 😄)
-* **Web version** pure HTML/CSS/JavaScript, runs in your browser (hello GitHub Pages!) [Demo](https://volkansah.github.io/Space-Invalides/)
+* **Web version** pure HTML/CSS/JavaScript, runs in your browser (hello GitHub Pages!) [Demo](https://volkansah.github.io/Space-Invalides/index.html)
+* New Version  [Demo](https://volkansah.github.io/Space-Invalides/2.html)
 
 
 
