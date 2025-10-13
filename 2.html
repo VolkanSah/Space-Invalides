@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Space Invalides - Touch & Maus Steuerung</title>
+<style>
+  body {
+    margin: 0; 
+    overflow: hidden;
+    background: #000011;
+    touch-action: none;
+    user-select: none;
+  }
+  #game-container {
+    width: 100vw;
+    height: 100vh;
+    margin: 0 auto;
+    display: block;
+    position: relative;
+  }
+  #game-svg {
+    width: 100%;
+    height: 100%;
+    background: #000011;
+  }
+  #hud {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: white;
+    font-family: 'Arial', sans-serif;
+    font-size: 16px;
+    z-index: 100;
+    background: rgba(0,0,0,0.7);
+    padding: 10px;
+    border-radius: 5px;
+  }
+  .speed-bar {
+    width: 200px;
+    height: 10px;
+    background: #333;
+    margin: 5px 0;
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .speed-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #00ff00, #ffff00, #ff0000);
+    transition: width 0.3s;
+  }
+  #touch-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    display: flex;
+    justify-content: space-between;
+    z-index: 100;
+  }
+  .touch-area {
+    width: 80px;
+    height: 80px;
+    background: rgba(255,255,255,0.2);
+    border: 2px solid rgba(255,255,255,0.5);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+    touch-action: none;
+  }
+  #fire-button {
+    background: rgba(255,50,50,0.3);
+    border-color: #ff4444;
+  }
+</style>
+</head>
+<body>
+<div id="game-container">
+  <svg id="game-svg" viewBox="0 0 1600 1200"></svg>
+  <div id="hud">
+    <div>Score: <span id="score">0</span></div>
+    <div>Geschwindigkeit: <span id="speed">50%</span></div>
+    <div class="speed-bar"><div class="speed-fill" id="speed-fill"></div></div>
+    <div>Steuerung: Touch/Maus zum Lenken</div>
+  </div>
+  
+  <div id="touch-controls">
+    <div class="touch-area" id="left-control">←</div>
+    <div class="touch-area" id="fire-button">🔥</div>
+    <div class="touch-area" id="right-control">→</div>
+  </div>
+</div>
+
+<script type="module">
+class GalaxySpaceGame {
+  constructor() {
+    this.svg = document.getElementById('game-svg');
+    this.hud = {
+      score: document.getElementById('score'),
+      speed: document.getElementById('speed'),
+      speedFill: document.getElementById('speed-fill')
+    };
+    
+    this.gameState = {
+      score: 0,
+      playerSpeed: 0.5,
+      playerPosition: { x: 800, y: 600 },
+      playerVelocity: { x: 0, y: 0 },
+      gameActive: true
+    };
+
+    // Spiel-Elemente
+    this.player = null;
+    this.enemies = [];
+    this.bullets = [];
+    this.planets = [];
+    this.stars = [];
+    this.nebulas = [];
+    
+    // Steuerung
+    this.controls = {
+      left: false,
+      right: false,
+      up: false,
+      down: false,
+      fire: false
+    };
+    
+    this.touch = {
+      active: false,
+      startX: 0,
+      startY: 0,
+      currentX: 0,
+      currentY: 0
+    };
+    
+    this.init();
+  }
+
+  init() {
+    this.createUniverse();
+    this.createPlayer();
+    this.createPlanets();
+    this.createNebulas();
+    this.createEnemies(8);
+    this.setupControls();
+    this.gameLoop();
+  }
+
+  createUniverse() {
+    // Tiefensterne
+    for(let layer = 0; layer < 3; layer++) {
+      const starCount = layer === 0 ? 200 : layer === 1 ? 150 : 100;
+      const starSize = layer === 0 ? 0.5 : layer === 1 ? 1 : 1.5;
+      const starSpeed = layer === 0 ? 0.2 : layer === 1 ? 0.5 : 0.8;
+      
+      for(let i = 0; i < starCount; i++) {
+        const star = this.createStar(
+          Math.random() * 1600,
+          Math.random() * 1200,
+          Math.random() * starSize + starSize/2,
+          starSpeed,
+          layer
+        );
+        this.stars.push(star);
+      }
+    }
+  }
+
+  createStar(x, y, size, speed, layer) {
+    const star = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    star.setAttribute("cx", x);
+    star.setAttribute("cy", y);
+    star.setAttribute("r", size);
+    star.setAttribute("fill", "#ffffff");
+    star.setAttribute("opacity", Math.random() * 0.8 + 0.2);
+    
+    this.svg.appendChild(star);
+    
+    return {
+      element: star,
+      x: x,
+      y: y,
+      originalX: x,
+      originalY: y,
+      size: size,
+      speed: speed,
+      layer: layer
+    };
+  }
+
+  createNebulas() {
+    const nebulaColors = [
+      { color1: "#1a0a2a", color2: "#4a1a6a" },
+      { color1: "#0a1a2a", color2: "#1a4a7a" },
+      { color1: "#2a1a0a", color2: "#6a4a1a" }
+    ];
+
+    for(let i = 0; i < 4; i++) {
+      const colorSet = nebulaColors[Math.floor(Math.random() * nebulaColors.length)];
+      const nebula = this.createNebula(
+        Math.random() * 1600,
+        Math.random() * 1200,
+        Math.random() * 300 + 200,
+        Math.random() * 200 + 100,
+        colorSet
+      );
+      this.nebulas.push(nebula);
+    }
+  }
+
+  createNebula(x, y, width, height, colors) {
+    const nebula = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    nebula.setAttribute("cx", x);
+    nebula.setAttribute("cy", y);
+    nebula.setAttribute("rx", width);
+    nebula.setAttribute("ry", height);
+    nebula.setAttribute("fill", colors.color1);
+    nebula.setAttribute("opacity", "0.3");
+    
+    this.svg.appendChild(nebula);
+    
+    return {
+      element: nebula,
+      x: x,
+      y: y,
+      width: width,
+      height: height
+    };
+  }
+
+  createPlanets() {
+    const planetTypes = [
+      { size: 80, color: "#4a8cff", name: "Blaugas" },
+      { size: 60, color: "#ff6b6b", name: "Rotglut" },
+      { size: 100, color: "#6bff8c", name: "Grünwelt" },
+      { size: 70, color: "#ffd86b", name: "Gelbstern" }
+    ];
+
+    for(let i = 0; i < 4; i++) {
+      const type = planetTypes[Math.floor(Math.random() * planetTypes.length)];
+      const planet = this.createPlanet(
+        Math.random() * 1200 + 200,
+        Math.random() * 800 + 200,
+        type.size,
+        type.color
+      );
+      this.planets.push(planet);
+    }
+  }
+
+  createPlanet(x, y, size, color) {
+    const planetGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    planetGroup.setAttribute("transform", `translate(${x}, ${y})`);
+    
+    const planet = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    planet.setAttribute("r", size);
+    planet.setAttribute("fill", color);
+    planet.setAttribute("stroke", "#ffffff");
+    planet.setAttribute("stroke-width", "2");
+    
+    planetGroup.appendChild(planet);
+    this.svg.appendChild(planetGroup);
+    
+    return {
+      element: planetGroup,
+      x: x,
+      y: y,
+      size: size,
+      originalX: x,
+      originalY: y
+    };
+  }
+
+  createPlayer() {
+    this.player = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    this.player.setAttribute("transform", "translate(800, 600)");
+    
+    const shipBody = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    shipBody.setAttribute("d", "M -20 0 L 0 -30 L 20 0 L 12 20 L -12 20 Z");
+    shipBody.setAttribute("fill", "#4a8cff");
+    shipBody.setAttribute("stroke", "#00ffff");
+    shipBody.setAttribute("stroke-width", "2");
+    
+    const cockpit = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    cockpit.setAttribute("cx", "0");
+    cockpit.setAttribute("cy", "-10");
+    cockpit.setAttribute("rx", "8");
+    cockpit.setAttribute("ry", "5");
+    cockpit.setAttribute("fill", "#00ffff");
+    cockpit.setAttribute("opacity", "0.8");
+    
+    this.player.appendChild(shipBody);
+    this.player.appendChild(cockpit);
+    this.svg.appendChild(this.player);
+  }
+
+  createEnemies(count) {
+    for(let i = 0; i < count; i++) {
+      setTimeout(() => this.createEnemy(), i * 1000);
+    }
+  }
+
+  createEnemy() {
+    const enemy = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const x = Math.random() * 1400 + 100;
+    const y = Math.random() * 800 + 200;
+    enemy.setAttribute("transform", `translate(${x}, ${y})`);
+    
+    const enemyBody = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    enemyBody.setAttribute("d", "M -15 0 L 0 -25 L 15 0 L 10 15 L -10 15 Z");
+    enemyBody.setAttribute("fill", "#ff4444");
+    enemyBody.setAttribute("stroke", "#ff6b6b");
+    enemyBody.setAttribute("stroke-width", "2");
+    
+    enemy.appendChild(enemyBody);
+    
+    enemy.gameData = {
+      x: x,
+      y: y,
+      velocityX: (Math.random() - 0.5) * 2,
+      velocityY: (Math.random() - 0.5) * 2,
+      active: true
+    };
+
+    this.svg.appendChild(enemy);
+    this.enemies.push(enemy);
+  }
+
+  setupControls() {
+    // Touch Controls
+    const leftControl = document.getElementById('left-control');
+    const rightControl = document.getElementById('right-control');
+    const fireButton = document.getElementById('fire-button');
+
+    // Touch Events für Steuerung
+    [leftControl, rightControl, fireButton].forEach((element, index) => {
+      element.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (index === 0) this.controls.left = true;
+        if (index === 1) this.controls.fire = true;
+        if (index === 2) this.controls.right = true;
+      });
+
+      element.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        if (index === 0) this.controls.left = false;
+        if (index === 1) this.controls.fire = false;
+        if (index === 2) this.controls.right = false;
+      });
+    });
+
+    // Maus Controls für Desktop
+    leftControl.addEventListener('mousedown', () => this.controls.left = true);
+    leftControl.addEventListener('mouseup', () => this.controls.left = false);
+    leftControl.addEventListener('mouseleave', () => this.controls.left = false);
+
+    rightControl.addEventListener('mousedown', () => this.controls.right = true);
+    rightControl.addEventListener('mouseup', () => this.controls.right = false);
+    rightControl.addEventListener('mouseleave', () => this.controls.right = false);
+
+    fireButton.addEventListener('mousedown', () => this.controls.fire = true);
+    fireButton.addEventListener('mouseup', () => this.controls.fire = false);
+    fireButton.addEventListener('mouseleave', () => this.controls.fire = false);
+
+    // Swipe-Steuerung für den Hauptbildschirm
+    this.svg.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      this.touch.active = true;
+      this.touch.startX = touch.clientX;
+      this.touch.startY = touch.clientY;
+      this.touch.currentX = touch.clientX;
+      this.touch.currentY = touch.clientY;
+    });
+
+    this.svg.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      if (!this.touch.active) return;
+      
+      const touch = e.touches[0];
+      this.touch.currentX = touch.clientX;
+      this.touch.currentY = touch.clientY;
+      
+      // Berechne Swipe-Richtung
+      const deltaX = this.touch.currentX - this.touch.startX;
+      const deltaY = this.touch.currentY - this.touch.startY;
+      
+      // Setze Geschwindigkeit basierend auf Swipe
+      this.gameState.playerVelocity.x = deltaX * 0.05;
+      this.gameState.playerVelocity.y = deltaY * 0.05;
+    });
+
+    this.svg.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      this.touch.active = false;
+      // Sanftes Auslaufen
+      this.gameState.playerVelocity.x *= 0.9;
+      this.gameState.playerVelocity.y *= 0.9;
+    });
+
+    // Maus-Steuerung für Desktop
+    this.svg.addEventListener('mousedown', (e) => {
+      this.touch.active = true;
+      this.touch.startX = e.clientX;
+      this.touch.startY = e.clientY;
+      this.touch.currentX = e.clientX;
+      this.touch.currentY = e.clientY;
+    });
+
+    this.svg.addEventListener('mousemove', (e) => {
+      if (!this.touch.active) return;
+      
+      this.touch.currentX = e.clientX;
+      this.touch.currentY = e.clientY;
+      
+      const deltaX = this.touch.currentX - this.touch.startX;
+      const deltaY = this.touch.currentY - this.touch.startY;
+      
+      this.gameState.playerVelocity.x = deltaX * 0.03;
+      this.gameState.playerVelocity.y = deltaY * 0.03;
+    });
+
+    this.svg.addEventListener('mouseup', () => {
+      this.touch.active = false;
+      this.gameState.playerVelocity.x *= 0.9;
+      this.gameState.playerVelocity.y *= 0.9;
+    });
+
+    this.svg.addEventListener('mouseleave', () => {
+      this.touch.active = false;
+      this.gameState.playerVelocity.x *= 0.9;
+      this.gameState.playerVelocity.y *= 0.9;
+    });
+
+    // Tastatur als Fallback
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'ArrowLeft') this.controls.left = true;
+      if (e.code === 'ArrowRight') this.controls.right = true;
+      if (e.code === 'Space') this.controls.fire = true;
+    });
+
+    document.addEventListener('keyup', (e) => {
+      if (e.code === 'ArrowLeft') this.controls.left = false;
+      if (e.code === 'ArrowRight') this.controls.right = false;
+      if (e.code === 'Space') this.controls.fire = false;
+    });
+  }
+
+  updateUniverse() {
+    const speed = this.gameState.playerSpeed;
+    
+    // Sterne bewegen basierend auf Spielerbewegung
+    this.stars.forEach(star => {
+      const moveX = -this.gameState.playerVelocity.x * star.speed * 2;
+      const moveY = -this.gameState.playerVelocity.y * star.speed * 2;
+      
+      star.x = star.originalX + moveX;
+      star.y = star.originalY + moveY;
+      
+      const scale = 1 + (speed * star.layer * 0.1);
+      const currentX = (star.x - 800) * scale + 800;
+      const currentY = (star.y - 600) * scale + 600;
+      
+      star.element.setAttribute("cx", currentX);
+      star.element.setAttribute("cy", currentY);
+    });
+
+    // Planeten bewegen
+    this.planets.forEach(planet => {
+      const moveX = -this.gameState.playerVelocity.x * 0.5;
+      const moveY = -this.gameState.playerVelocity.y * 0.5;
+      
+      planet.x = planet.originalX + moveX;
+      planet.y = planet.originalY + moveY;
+      
+      const currentX = planet.x;
+      const currentY = planet.y;
+      
+      planet.element.setAttribute("transform", `translate(${currentX}, ${currentY})`);
+    });
+  }
+
+  updatePlayer() {
+    if (!this.player) return;
+
+    // Steuerung verarbeiten
+    if (this.controls.left) {
+      this.gameState.playerVelocity.x = -5;
+    }
+    if (this.controls.right) {
+      this.gameState.playerVelocity.x = 5;
+    }
+
+    // Spielerposition aktualisieren
+    this.gameState.playerPosition.x += this.gameState.playerVelocity.x;
+    this.gameState.playerPosition.y += this.gameState.playerVelocity.y;
+
+    // Bildschirmgrenzen
+    this.gameState.playerPosition.x = Math.max(50, Math.min(1550, this.gameState.playerPosition.x));
+    this.gameState.playerPosition.y = Math.max(50, Math.min(1150, this.gameState.playerPosition.y));
+
+    // Raumschiff positionieren
+    this.player.setAttribute("transform", 
+      `translate(${this.gameState.playerPosition.x}, ${this.gameState.playerPosition.y})`);
+
+    // Geschwindigkeit reduzieren (Trägheit)
+    this.gameState.playerVelocity.x *= 0.95;
+    this.gameState.playerVelocity.y *= 0.95;
+
+    // Schießen
+    if (this.controls.fire && Date.now() > (this.lastFired || 0) + 300) {
+      this.createBullet();
+      this.lastFired = Date.now();
+    }
+
+    // HUD aktualisieren
+    this.hud.speed.textContent = `${Math.round(this.gameState.playerSpeed * 100)}%`;
+    this.hud.speedFill.style.width = `${this.gameState.playerSpeed * 100}%`;
+  }
+
+  updateEnemies() {
+    this.enemies.forEach(enemy => {
+      if (!enemy.gameData.active) return;
+
+      enemy.gameData.x += enemy.gameData.velocityX;
+      enemy.gameData.y += enemy.gameData.velocityY;
+
+      // Bildschirmgrenzen
+      if (enemy.gameData.x < 50 || enemy.gameData.x > 1550) {
+        enemy.gameData.velocityX *= -1;
+      }
+      if (enemy.gameData.y < 50 || enemy.gameData.y > 1150) {
+        enemy.gameData.velocityY *= -1;
+      }
+
+      enemy.setAttribute("transform", `translate(${enemy.gameData.x}, ${enemy.gameData.y})`);
+    });
+  }
+
+  createBullet() {
+    const bullet = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    bullet.setAttribute("cx", this.gameState.playerPosition.x);
+    bullet.setAttribute("cy", this.gameState.playerPosition.y - 20);
+    bullet.setAttribute("r", "4");
+    bullet.setAttribute("fill", "#ffff00");
+    bullet.setAttribute("stroke", "#ffa500");
+    bullet.setAttribute("stroke-width", "1");
+    
+    this.svg.appendChild(bullet);
+    
+    bullet.gameData = {
+      x: this.gameState.playerPosition.x,
+      y: this.gameState.playerPosition.y - 20,
+      active: true
+    };
+
+    this.bullets.push(bullet);
+  }
+
+  updateBullets() {
+    for(let i = this.bullets.length - 1; i >= 0; i--) {
+      const bullet = this.bullets[i];
+      if (!bullet.gameData.active) {
+        this.svg.removeChild(bullet);
+        this.bullets.splice(i, 1);
+        continue;
+      }
+
+      bullet.gameData.y -= 8;
+      bullet.setAttribute("cy", bullet.gameData.y);
+
+      // Kugel entfernen wenn außerhalb
+      if (bullet.gameData.y < 0) {
+        bullet.gameData.active = false;
+        continue;
+      }
+
+      // Kollisionserkennung
+      this.checkBulletCollision(bullet);
+    }
+  }
+
+  checkBulletCollision(bullet) {
+    const bulletX = bullet.gameData.x;
+    const bulletY = bullet.gameData.y;
+
+    this.enemies.forEach(enemy => {
+      if (!enemy.gameData.active) return;
+
+      const enemyX = enemy.gameData.x;
+      const enemyY = enemy.gameData.y;
+      
+      const distance = Math.sqrt((bulletX - enemyX) ** 2 + (bulletY - enemyY) ** 2);
+      
+      if (distance < 25) {
+        bullet.gameData.active = false;
+        enemy.gameData.active = false;
+        
+        this.createExplosion(enemyX, enemyY);
+        
+        setTimeout(() => {
+          enemy.gameData.x = Math.random() * 1400 + 100;
+          enemy.gameData.y = Math.random() * 800 + 200;
+          enemy.gameData.active = true;
+          enemy.setAttribute("opacity", "1");
+        }, 2000);
+
+        enemy.setAttribute("opacity", "0");
+        this.gameState.score++;
+        this.hud.score.textContent = this.gameState.score;
+      }
+    });
+  }
+
+  createExplosion(x, y) {
+    const explosion = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    explosion.setAttribute("transform", `translate(${x}, ${y})`);
+    
+    for(let i = 0; i < 8; i++) {
+      const particle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      const angle = (i / 8) * Math.PI * 2;
+      const distance = 15;
+      particle.setAttribute("cx", Math.cos(angle) * distance);
+      particle.setAttribute("cy", Math.sin(angle) * distance);
+      particle.setAttribute("r", "3");
+      particle.setAttribute("fill", i % 2 === 0 ? "#ff6b35" : "#ffff00");
+      explosion.appendChild(particle);
+    }
+    
+    this.svg.appendChild(explosion);
+    
+    setTimeout(() => {
+      if (explosion.parentNode) {
+        this.svg.removeChild(explosion);
+      }
+    }, 500);
+  }
+
+  gameLoop() {
+    if (!this.gameState.gameActive) return;
+
+    this.updateUniverse();
+    this.updatePlayer();
+    this.updateEnemies();
+    this.updateBullets();
+
+    requestAnimationFrame(() => this.gameLoop());
+  }
+}
+
+// Spiel starten
+document.addEventListener('DOMContentLoaded', () => {
+  new GalaxySpaceGame();
+});
+</script>
+</body>
+</html>
